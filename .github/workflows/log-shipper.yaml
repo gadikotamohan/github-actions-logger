@@ -28,7 +28,7 @@ jobs:
           echo "Debugging: Extracted ALL_JOB_IDS are $ALL_JOB_IDS"
           echo "all_job_ids=$ALL_JOB_IDS" >> $GITHUB_OUTPUT
 
-      - name: Fetch and Stream Final Logs for All Jobs
+      - name: Monitor Run Progress and Ship Final Logs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ALL_JOB_IDS: ${{ steps.get_job_ids.outputs.all_job_ids }}
@@ -36,30 +36,32 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           echo "Found job IDs: $ALL_JOB_IDS"
-          echo "Waiting for the CI Worker run to complete..."
+          echo "Monitoring CI Worker run progress..."
 
           # Poll the overall run status until it's completed
           while gh run view "$RUN_ID" --json status -q '.status' | grep -q 'in_progress'; do
-            echo "CI Worker run is still in progress. Displaying high-level status..."
-            LOG_CONTENT=$(gh run view "$RUN_ID") # Get summary status, similar to gh run watch
-            echo "--- Run Status Update ---"
-            echo "$LOG_CONTENT"
+            echo "CI Worker run is still in progress. Sending status update..."
+            # Get the high-level summary of the run (similar to gh run watch output)
+            RUN_SUMMARY_CONTENT=$(gh run view "$RUN_ID")
+            # SIGNATURE=$(echo -n "$RUN_SUMMARY_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
+            echo "--- Run Summary Update ---"
+            echo "$RUN_SUMMARY_CONTENT"
             # curl -X POST \
             #      -H "X-GitHub-Run-ID: $RUN_ID" \
             #      -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
-            #      -d "$LOG_CONTENT" \
-            #      http://your-log-server.com/run_status_updates # You might need a separate endpoint for status updates
-            sleep 3 # Adjust this value to control polling frequency. 
+            #      -d "$RUN_SUMMARY_CONTENT" \
+            #      http://your-log-server.com/run_summary_updates # Suggest a separate endpoint for summary updates
+            sleep 15 # Adjust this value to control polling frequency.
           done
 
-          echo "CI Worker run has completed. Fetching and sending final logs for all jobs..."
+          echo "CI Worker run has completed. Fetching and sending final detailed logs for all jobs..."
 
-          # Loop through each job ID and send its final log
+          # Loop through each job ID and send its final detailed log
           for JOB_ID in $ALL_JOB_IDS; do
-            echo "--- Processing Final Log for Job ID: $JOB_ID ---"
+            echo "--- Processing Final Detailed Log for Job ID: $JOB_ID ---"
             LOG_CONTENT=$(gh run view "$RUN_ID" --job "$JOB_ID" --log)
             # SIGNATURE=$(echo -n "$LOG_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
-            echo "--- Final Log Content for Job $JOB_ID ---"
+            echo "--- Final Detailed Log Content for Job $JOB_ID ---"
             echo "$LOG_CONTENT"
             # curl -X POST \
             #      -H "X-GitHub-Job-ID: $JOB_ID" \
