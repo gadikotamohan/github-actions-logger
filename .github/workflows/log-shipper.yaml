@@ -22,6 +22,7 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           # Find the specific ID for the 'build' job within the triggering workflow run.
+          # This assumes your CI Worker has a job named 'build'.
           BUILD_JOB_ID=$(gh run view $RUN_ID --json jobs -q '.jobs[] | select(.name == "build") | .id')
           echo "build_job_id=$BUILD_JOB_ID" >> $GITHUB_OUTPUT
 
@@ -29,18 +30,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_JOB_ID: ${{ steps.get_job_id.outputs.build_job_id }}
+          LOG_SECRET: ${{ secrets.LOG_SECRET }}
         run: |
           echo "Found build job ID: $BUILD_JOB_ID"
           echo "Starting to poll for logs..."
 
           # Poll for logs every 15 seconds while the job is in progress.
+          # The `gh` CLI is pre-installed on GitHub-hosted runners.
           while gh run view $BUILD_JOB_ID --json status -q '.status' | grep -q 'in_progress'; do
             echo "Job is in progress. Fetching latest logs..."
-            gh run view $BUILD_JOB_ID --log | curl -X POST -H "X-GitHub-Job-ID: $BUILD_JOB_ID" -d @- http://your-log-server.com
-            sleep 15
+            LOG_CONTENT=$(gh run view $BUILD_JOB_ID --log)
+            SIGNATURE=$(echo -n "$LOG_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
+            curl -X POST \
+                 -H "X-GitHub-Job-ID: $BUILD_JOB_ID" \
+                 -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+                 -d "$LOG_CONTENT" \
+                 http://your-log-server.com/logs
+            sleep 15 # Adjust this value to control polling frequency and API usage.
           done
 
           # The job is finished. Send the final, complete log one last time.
           echo "Job has finished. Sending final complete log..."
-          gh run view $BUILD_JOB_ID --log | curl -X POST -H "X-GitHub-Job-ID: $BUILD_JOB_ID" -d @- http://your-log-server.com
+          LOG_CONTENT=$(gh run view $BUILD_JOB_ID --log)
+          SIGNATURE=$(echo -n "$LOG_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
+          curl -X POST \
+               -H "X-GitHub-Job-ID: $BUILD_JOB_ID" \
+               -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+               -d "$LOG_CONTENT" \
+               http://your-log-server.com/logs
           echo "Log shipping complete."

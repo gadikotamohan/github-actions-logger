@@ -126,6 +126,22 @@ jobs:
 *   Ensure your repository's default branch is `main` (or adjust the `on: push: branches:` in `poc.yaml` accordingly).
 *   The `GITHUB_TOKEN` in `log-shipper.yaml` automatically gets the necessary permissions due to the `permissions: actions: read` block.
 
+## Security Considerations
+
+**CRITICAL:** The endpoint (`/logs`) on your Rails application is designed to receive data from GitHub Actions. Because we are skipping CSRF token verification (`skip_before_action :verify_authenticity_token`), it is absolutely essential to implement robust authentication to prevent unauthorized access and potential Cross-Site Request Forgery (CSRF) attacks.
+
+This solution implements a **HMAC-SHA256 signature verification** mechanism:
+
+1.  **Shared Secret (`LOG_SECRET`):** A secret key (`LOG_SECRET`) is used by both your GitHub Actions workflow and your Rails application.
+    *   **GitHub Actions:** You **must** add a repository secret named `LOG_SECRET` in your GitHub repository settings (Settings -> Secrets and variables -> Actions -> Repository secrets). This should be a strong, random string.
+    *   **Rails Application:** The *exact same string* must be available to your Rails application via an environment variable (e.g., `ENV['LOG_SECRET']`).
+2.  **Signature Generation (GitHub Actions):** Before sending the log content, the `log-shipper.yaml` workflow calculates an HMAC-SHA256 signature of the log payload using the `LOG_SECRET`. This signature is sent in the `X-Hub-Signature-256` HTTP header.
+3.  **Signature Verification (Rails Application):** The `LogsController` in your Rails application calculates its own HMAC-SHA256 signature of the received request body using its local `LOG_SECRET`. It then compares this calculated signature with the `X-Hub-Signature-256` header.
+    *   **If signatures match:** The request is considered authentic and processed.
+    *   **If signatures do not match:** The request is rejected with an `unauthorized` status.
+
+**NEVER expose your `LOG_SECRET` publicly.** Treat it with the same care as a password.
+
 ### 2. Rails Application Setup (Log Receiver)
 
 This section outlines the basic Rails components needed to receive and store the logs.
