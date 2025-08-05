@@ -5,6 +5,9 @@ on:
     types:
       - started
 
+permissions:
+  actions: read
+
 jobs:
   log-shipper:
     runs-on: ubuntu-latest
