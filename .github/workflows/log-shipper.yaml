@@ -24,7 +24,7 @@ jobs:
           echo "Debugging: RUN_ID is $RUN_ID"
           # Find the specific ID for the 'build' job within the triggering workflow run.
           # This assumes your CI Worker has a job named 'build'.
-          BUILD_JOB_ID=$(gh run view $RUN_ID --json jobs -q '.jobs[] | select(.name == "build") | .id')
+          BUILD_JOB_ID=$(gh run view $RUN_ID --json jobs -q '.jobs[] | select(.name == "build") | .databaseId')
           echo "Debugging: Extracted BUILD_JOB_ID is $BUILD_JOB_ID"
           echo "build_job_id=$BUILD_JOB_ID" >> $GITHUB_OUTPUT
 
@@ -63,6 +63,6 @@ jobs:
           # curl -X POST \
           #      -H "X-GitHub-Job-ID: $BUILD_JOB_ID" \
           #      -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
-          #      -d "$LOG_CONTENT" \
-          #      http://your-log-server.com/logs
+            #      -d "$LOG_CONTENT" \
+            #      http://your-log-server.com/logs
           echo "Log shipping complete."
