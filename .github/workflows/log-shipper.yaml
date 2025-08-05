@@ -3,7 +3,7 @@ on:
   workflow_run:
     workflows: ["poc.yaml"]
     types:
-      - started
+      - requested
 
 permissions:
   actions: read
