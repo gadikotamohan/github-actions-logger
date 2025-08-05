@@ -49,7 +49,7 @@ jobs:
             #      -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
             #      -d "$LOG_CONTENT" \
             #      http://your-log-server.com/run_status_updates # You might need a separate endpoint for status updates
-            sleep 15 # Adjust this value to control polling frequency. 
+            sleep 3 # Adjust this value to control polling frequency. 
           done
 
           echo "CI Worker run has completed. Fetching and sending final logs for all jobs..."
