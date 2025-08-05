@@ -21,9 +21,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
+          echo "Debugging: RUN_ID is $RUN_ID"
           # Find the specific ID for the 'build' job within the triggering workflow run.
           # This assumes your CI Worker has a job named 'build'.
           BUILD_JOB_ID=$(gh run view $RUN_ID --json jobs -q '.jobs[] | select(.name == "build") | .id')
+          echo "Debugging: Extracted BUILD_JOB_ID is $BUILD_JOB_ID"
           echo "build_job_id=$BUILD_JOB_ID" >> $GITHUB_OUTPUT
 
       - name: Stream Logs to HTTP Server
@@ -32,6 +34,7 @@ jobs:
           BUILD_JOB_ID: ${{ steps.get_job_id.outputs.build_job_id }}
           LOG_SECRET: ${{ secrets.LOG_SECRET }}
         run: |
+          echo "Debugging: BUILD_JOB_ID in streaming step is $BUILD_JOB_ID"
           echo "Found build job ID: $BUILD_JOB_ID"
           echo "Starting to poll for logs..."
 
