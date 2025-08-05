@@ -1,7 +1,7 @@
 name: Real-time Log Shipper
 on:
   workflow_run:
-    workflows: ["CI Worker"]
+    workflows: ["poc.yaml"]
     types:
       - started
 
