@@ -10,17 +10,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Debugging Info
+      - name: Simulate a multi-step build process
         run: |
-          echo "hello from the CI Worker"
-          echo "This is where your build, test, and deploy steps would go."
-          ls -al
-          pwd
-          sleep 3
+          echo "Starting the build process..."
+          echo "---------------------------------"
+          
+          echo "Step 1: Installing dependencies..."
+          sleep 5
+          echo "Dependencies installed."
+          echo "---------------------------------"
+
+          echo "Step 2: Running tests..."
+          for i in {1..5}; do
+            echo "Running test $i..."
+            sleep 2
+          done
+          echo "All tests passed."
+          echo "---------------------------------"
+
+          echo "Step 3: Building the application..."
+          sleep 5
+          echo "Build complete."
+          echo "---------------------------------"
+
           echo "Worker job is now complete."
-          echo "Worker job is now complete 1."
-          echo "Worker job is now complete 2."
-          sleep 3
-          echo "Worker job is now complete 3."
-          echo "Worker job is now complete 4."
-          echo "Worker job is now complete 5."
