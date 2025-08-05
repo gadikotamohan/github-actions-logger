@@ -23,4 +23,5 @@ jobs:
 
           # Watch the logs of the triggering run and send them to the server
           # Replace http://your-log-server.com with your actual log server URL
-          gh run watch "$RUN_ID" | curl -X POST -d @- http://your-log-server.com
+          # gh run watch "$RUN_ID" | curl -X POST -d @- http://your-log-server.com
+          gh run watch "$RUN_ID"

@@ -16,4 +16,11 @@ jobs:
           echo "This is where your build, test, and deploy steps would go."
           ls -al
           pwd
+          sleep 3
           echo "Worker job is now complete."
+          echo "Worker job is now complete 1."
+          echo "Worker job is now complete 2."
+          sleep 3
+          echo "Worker job is now complete 3."
+          echo "Worker job is now complete 4."
+          echo "Worker job is now complete 5."
