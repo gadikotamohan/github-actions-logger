@@ -1,0 +1,23 @@
+name: Real-time Log Shipper
+on:
+  workflow_run:
+    workflows: ["CI Worker"]
+    types:
+      - started
+
+jobs:
+  log-shipper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stream logs to HTTP server
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          # Install GitHub CLI
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+          # Watch the logs of the triggering run and send them to the server
+          # Replace http://your-log-server.com with your actual log server URL
+          gh run watch "$RUN_ID" | curl -X POST -d @- http://your-log-server.com
