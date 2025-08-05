@@ -23,7 +23,7 @@ jobs:
           echo "Step 2: Running tests..."
           for i in {1..5}; do
             echo "Running test $i..."
-            sleep 2
+            sleep 5
           done
           echo "All tests passed."
           echo "---------------------------------"
