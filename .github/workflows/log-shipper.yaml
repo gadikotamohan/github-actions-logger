@@ -14,10 +14,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Stream logs to HTTP server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          # gh run watch "$RUN_ID" | curl -X POST -d @- http://your-log-server.com
-          gh run watch "$RUN_ID"
+          # gh is pre-installed on the runner
+          # Watch the raw logs of the triggering run and print them here for inspection.
+          gh run watch "$RUN_ID" --log
