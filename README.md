@@ -86,39 +86,76 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3 # Required for 'gh' CLI to find repo context
 
-      - name: Get Build Job ID
-        id: get_job_id
+      - name: Get All Job IDs
+        id: get_job_ids
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          # Find the specific ID for the 'build' job within the triggering workflow run.
-          # This assumes your CI Worker has a job named 'build'.
-          BUILD_JOB_ID=$(gh run view $RUN_ID --json jobs -q '.jobs[] | select(.name == "build") | .id')
-          echo "build_job_id=$BUILD_JOB_ID" >> $GITHUB_OUTPUT
+          echo "Debugging: RUN_ID is $RUN_ID"
+          # Get all job database IDs for the triggering workflow run.
+          # We use --json jobs to get the full job objects, then jq to extract all databaseIds.
+          ALL_JOB_IDS=$(gh run view $RUN_ID --json jobs -q '.jobs[] | .databaseId')
+          echo "Debugging: Extracted ALL_JOB_IDS are $ALL_JOB_IDS"
+          echo "all_job_ids=$ALL_JOB_IDS" >> $GITHUB_OUTPUT
 
-      - name: Stream Logs to HTTP Server
+      - name: Stream Logs for All Jobs to HTTP Server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_JOB_ID: ${{ steps.get_job_id.outputs.build_job_id }}
+          ALL_JOB_IDS: ${{ steps.get_job_ids.outputs.all_job_ids }}
+          LOG_SECRET: ${{ secrets.LOG_SECRET }}
         run: |
-          echo "Found build job ID: $BUILD_JOB_ID"
-          echo "Starting to poll for logs..."
+          echo "Found job IDs: $ALL_JOB_IDS"
+          echo "Starting to poll for logs for each job concurrently..."
 
-          # Poll for logs every 15 seconds while the job is in progress.
-          # The `gh` CLI is pre-installed on GitHub-hosted runners.
-          while gh run view $BUILD_JOB_ID --json status -q '.status' | grep -q 'in_progress'; do
-            echo "Job is in progress. Fetching latest logs..."
-            # Send the full log content with a custom header for job identification.
-            gh run view $BUILD_JOB_ID --log | curl -X POST -H "X-GitHub-Job-ID: $BUILD_JOB_ID" -d @- http://your-log-server.com/logs
-            sleep 15 # Adjust this value to control polling frequency and API usage.
+          # Function to poll and stream logs for a single job
+          stream_job_logs() {
+            local JOB_ID=$1
+            local LOG_SECRET=$2
+            echo "--- Processing Job ID: $JOB_ID ---"
+            echo "Starting to poll for logs for job $JOB_ID..."
+
+            # Poll for logs for this specific job while it is in progress.
+            while gh run view $JOB_ID --json status -q '.status' | grep -q 'in_progress'; do
+              echo "Job $JOB_ID is in progress. Fetching latest logs..."
+              LOG_CONTENT=$(gh run view $JOB_ID --log)
+              # SIGNATURE=$(echo -n "$LOG_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
+              echo "--- Log Content Update for Job $JOB_ID ---"
+              echo "$LOG_CONTENT"
+              # curl -X POST \
+              #      -H "X-GitHub-Job-ID: $JOB_ID" \
+              #      -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+              #      -d "$LOG_CONTENT" \
+              #      http://your-log-server.com/logs
+              sleep 15 # Adjust this value to control polling frequency and API usage.
+            done
+
+            # This job has finished. Send its final, complete log one last time.
+            echo "Job $JOB_ID has finished. Sending final complete log..."
+            LOG_CONTENT=$(gh run view $JOB_ID --log)
+            # SIGNATURE=$(echo -n "$LOG_CONTENT" | openssl dgst -sha256 -hmac "$LOG_SECRET" | sed 's/^.* //')
+            echo "--- Final Log Content for Job $JOB_ID ---"
+            echo "$LOG_CONTENT"
+            # curl -X POST \
+            #      -H "X-GitHub-Job-ID: $JOB_ID" \
+            #      -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+            #      -d "$LOG_CONTENT" \
+            #      http://your-log-server.com/logs
+            echo "Log shipping complete for Job $JOB_ID."
+          }
+
+          # Start a background process for each job ID
+          for JOB_ID in $ALL_JOB_IDS;
+          do
+            stream_job_logs "$JOB_ID" "$LOG_SECRET" &
           done
 
-          # The job is finished. Send the final, complete log one last time.
-          echo "Job has finished. Sending final complete log..."
-          gh run view $BUILD_JOB_ID --log | curl -X POST -H "X-GitHub-Job-ID: $BUILD_JOB_ID" -d @- http://your-log-server.com/logs
-          echo "Log shipping complete."
+          # Wait for all background processes to finish
+          wait
+
+          echo "All job logs processed."
 ```
+
 
 **Important Notes:**
 
